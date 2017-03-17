@@ -1,5 +1,5 @@
 var mongoose = require('mongoose');
-var Schema = mongoode.Schema;
+var Schema = mongoose.Schema;
 
 var schema = new Schema({
     imagePath:{ type: String, required: true},
@@ -8,4 +8,4 @@ var schema = new Schema({
     price:{ type: Number, required: true}
 });
 
-model.exports = mongoose.model('Product', schema);
+module.exports = mongoose.model('Product', schema);
