@@ -1,4 +1,9 @@
 var express = require('express');
+var http = require("http"),
+    socketio = require("socket.io"),
+    fs = require("fs"),
+    _ = require('underscore')._,
+    uuid = require("uuid");
 var path = require('path');
 var favicon = require('serve-favicon');
 var logger = require('morgan');
@@ -15,6 +20,7 @@ var MongoStore = require('connect-mongo')(session);
 
 var index = require('./routes/index');
 var userRoutes = require('./routes/user');
+var chatRoutes = require('./routes/chat');
 
 
 var app = express();
@@ -46,12 +52,15 @@ app.use(flash());
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'node_modules')));
 
 app.use(function (req, res, next) {
    res.locals.login = req.isAuthenticated();
    res.locals.session = req.session;
    next();
 });
+
+app.use('/chat', chatRoutes);
 app.use('/user', userRoutes);
 app.use('/', index);
 

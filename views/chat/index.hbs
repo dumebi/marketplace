@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8">
+	<title>Chat Room</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+	<style>
+		/* Toggle Styles */
+		html, body {
+			height: 100%;
+		}
+
+		#wrapper {
+			height: 100%;
+			padding-left: 0;
+			-webkit-transition: all 0.5s ease;
+			-moz-transition: all 0.5s ease;
+			-o-transition: all 0.5s ease;
+			transition: all 0.5s ease;
+		}
+
+		#wrapper.toggled {
+			padding-left: 250px;
+		}
+
+		#sidebar-wrapper {
+			z-index: 1000;
+			position: fixed;
+			left: 250px;
+			width: 0;
+			height: 100%;
+			margin-left: -250px;
+			overflow-y: auto;
+			background: #000;
+			-webkit-transition: all 0.5s ease;
+			-moz-transition: all 0.5s ease;
+			-o-transition: all 0.5s ease;
+			transition: all 0.5s ease;
+		}
+
+		#wrapper.toggled #sidebar-wrapper {
+			width: 250px;
+		}
+
+		#chatroom-wrapper {
+			height: 100%;
+			width: 100%;
+			position: absolute;
+			padding: 15px;
+		}
+
+		#dm-wrapper {
+			height: 100%;
+			width: 100%;
+			position: absolute;
+			padding: 15px;
+		}
+
+		#wrapper.toggled #chatroom-wrapper, #wrapper.toggled #dm-wrapper{
+			position: absolute;
+			margin-right: -250px;
+		}
+
+		/* Sidebar Styles */
+
+		.sidebar-nav {
+			position: absolute;
+			top: 0;
+			width: 250px;
+			margin: 0;
+			padding: 0;
+			list-style: none;
+		}
+
+		.dm-nav {
+			position: absolute;
+			top: 50%;
+			width: 250px;
+			margin: 0;
+			padding: 2px;
+			list-style: none;
+		}
+
+		.sidebar-nav, .dm-nav li {
+			text-indent: 20px;
+			line-height: 40px;
+		}
+
+		.sidebar-nav, .dm-nav li {
+			display: block;
+			text-decoration: none;
+			color: #999999;
+		}
+
+		.sidebar-nav, .dm-nav li:hover {
+			text-decoration: none;
+			color: white;
+			background: rgba(255,255,255,0.2);
+		}
+
+		.sidebar-nav, .dm-nav li:active,
+		.sidebar-nav, .dm-nav li:focus {
+			text-decoration: none;
+		}
+
+		.sidebar-nav > #createNewRoom {
+			height: 65px;
+			font-size: 18px;
+			line-height: 60px;
+		}
+
+		.sidebar-nav > #createNewRoom {
+			color: #999999;
+		}
+
+		.sidebar-nav > #createNewRoom:hover {
+			color: white;
+			background: none;
+		}
+
+		.half-col{
+			width:50%;
+		}
+
+		.pull-left{
+			float: left;
+		}
+
+		.pull-right{
+			float: right;
+		}
+
+		.bg-success{
+			background-color: #13ff0e;
+		}
+
+		.bg-warning{
+			background-color: #f9ff95;
+		}
+
+		@media(min-width:768px) {
+			#wrapper {
+				padding-left: 250px;
+			}
+
+			#wrapper.toggled {
+				padding-left: 0;
+			}
+
+			#sidebar-wrapper {
+				width: 250px;
+			}
+
+			#wrapper.toggled #sidebar-wrapper {
+				width: 0;
+			}
+
+			#chatroom-wrapper {
+				padding: 20px;
+				position: relative;
+			}
+
+			#dm-wrapper {
+				padding: 20px;
+				position: relative;
+			}
+
+			#wrapper.toggled #chatroom-wrapper, #wrapper.toggled #dm-wrapper {
+				position: relative;
+				margin-right: 0;
+			}
+
+			.half-col{
+				width:100%;
+			}
+		}
+
+
+		/* added by CDW */
+		#header{
+			height: 50px;
+			border-bottom: 1px solid
+		}
+
+		#chat, #dmchat{
+			height: calc(100% - 100px);
+			overflow: scroll;
+		}
+
+
+		#footer, #dmfooter{
+			height: 50px;
+			border-top: 1px solid
+		}
+
+		#messageBox, #dmmessageBox{
+			height: 75%;
+		}
+
+		#message_input, #dmmessage_input {
+			width: 100%;
+		}
+	</style>
+
+	<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.min.js"></script>
+	<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/css/select2.min.css" rel="stylesheet" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/js/select2.min.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
+	<script type="text/javascript">
+        $(document).ready(function() {
+            $("#contacts").select2();
+        });
+	</script>
+
+
+
+	<!-- Room Object Script -->
+	<script type ="text/javascript">
+		function Room (name, creator, id, priv, password) {
+			this.name = name;
+			this.creator = creator;
+			this.id = id;
+			this.members = {};
+
+			this.isPrivate = priv;
+			this.password = password;
+
+			this.addMember = function(member) {
+				this.members[member.id] = member;
+			};
+
+			this.removeMember = function(member) {
+				delete this.members[member.name];
+			};
+
+			this.isMember = function(memberName) {
+				for(m in this.members) {
+					if (m == memberName) {
+						return true;
+					}
+				}
+				return false;
+			};
+		}
+
+		function Person (name, id, roomOwn, roomIn) {
+			this.name = name;
+			this.id = id;
+			this.owns = roomOwn;
+			this.inRoom = roomIn;
+		}
+	</script>
+
+	<!-- Function Script -->
+	<script type ="text/javascript">
+		var user;
+		var rooms = [];
+		var activeRoom = null;
+        var activeDm = null;
+		var isPrivate;
+		var password;
+		var curRooms = {};
+        var curDms = {};
+		var users = {};
+
+
+        var toMem;
+
+        function zeroPad(num, size) {
+            var s = num + "";
+            while (s.length < size)
+                s = "0" + s;
+            return s;
+        }
+
+        // Format the time specified in ms from 1970 into local HH:MM:SS
+        function timeFormat(msTime) {
+            var d = new Date(msTime);
+            return zeroPad(d.getHours(), 2) + ":" +
+                zeroPad(d.getMinutes(), 2) + ":" +
+                zeroPad(d.getSeconds(), 2) + " ";
+        }
+
+		var socketio = io.connect();
+		socketio.on("new_user_to_client", function(data) {
+			user = data;
+		});
+
+		socketio.on("room_list", function(data) {
+			curRooms = data;
+			for (r in curRooms) {
+				var room = curRooms[r];
+				$("#activeRooms").append('<li id="' + room.id + '" class="active">' + room.name + '</li>');
+			}
+		});
+
+		socketio.on("create_room_to_client", function(data) {
+			var room = data;
+			$("#activeRooms").append('<li id="' + room.id + '"class="active">' + room.name + '</li>');
+			curRooms[room.id] = room;
+			$('input[type="radio"]').prop('checked', false);
+			$('#reveal-if-active').hide();
+			$('#roomPass').val("");
+		});
+
+        socketio.on("create_dm_to_client", function(data) {
+            fromMem = data['fromMem'];
+            toMem = data['toMem'];
+            chatID = data['chatID'];
+
+			console.log("create_dm_to_client "+chatID);
+
+            curDms[chatID] = toMem;
+
+            activeDm = chatID;
+
+            if(fromMem.name != user.name && $(".dm-nav:not(:contains('"+ fromMem.name +"'))")){
+                console.log("fromMem "+fromMem.name);
+                //$(".dm-nav").append('<li id="' + data['fromMem'].name + '">' + data['fromMem'].name + '<i class="pull-right glyphicon glyphicon-envelope"></i></li>');
+                $("#dmchatName").html("<h4>" + fromMem.name  + "</h4>");
+                $("#dm_to").val(fromMem.name);
+                $("#dm_to").attr('class', fromMem.id);
+            } else if(toMem.name != user.name && $(".dm-nav:not(:contains('"+ toMem.name +"'))")){
+                console.log("toMem "+toMem.name);
+                $("#dm_to").val(toMem.name);
+                $("#dm_to").attr('class', toMem.id);
+                $(".dm-nav").append('<li id="' + chatID + '">' + toMem.name + '</li>');
+                $("#dmchatName").html("<h4>" + toMem.name  + "</h4>");
+                $('#chatroom-wrapper').hide();
+                $('#dm-wrapper').show();
+
+
+
+                var dmdiv = document.getElementById('dmchatlog');
+                //var elem = document.getElementById('data');
+                dmdiv.scrollTop = dmdiv.scrollHeight;
+                document.getElementById('dmbottomspan').scrollIntoView();
+            }
+
+        });
+
+		socketio.on("enter_room_to_client", function(data) {
+            $('#chatroom-wrapper').show();
+            $('#dm-wrapper').hide();
+			$('#header').show();
+			//$('#chatlog').empty();
+			$('#footer').show();
+
+			document.getElementById("chatlog").appendChild(document.createTextNode(data));
+            document.getElementById("chatlog").appendChild(document.createElement("hr"));
+            document.getElementById('bottomspan').scrollIntoView();
+		});
+
+        socketio.on("enter_dm_to_client", function(data) {
+            if(user.name == data["fromMem"].name) {
+                $('#chatroom-wrapper').hide();
+                $('#dm-wrapper').show();
+            }
+            //$('#header').show();
+            //$('#chatlog').empty();
+            //$('#dmfooter').show();
+
+			var div = document.getElementById('dmchatlog');
+            div.scrollTop = div.scrollHeight;
+            document.getElementById('dmbottomspan').scrollIntoView();
+        });
+
+		socketio.on("list_mems_to_client", function(data) {
+			users = data;
+			for (m in data) {
+				var member = data[m];
+				if(member.name == user.name) {
+                    $("#memsList").append('<li id="' + member.id + '" class="active"> You </li>');
+                }else{
+                    $("#memsList").append('<li id="' + member.id + '" class="active">' + member.name + '</li>');
+				}
+				$('#memHeader').empty();
+				$('#actionList').empty();
+			}
+		});
+
+		socketio.on("message_to_client", function(data) {
+		    if(data['user'] == user.name) {
+                $( "#chatlog" ).append("<div class='row'> " +
+											"<div style='padding: 2%;'  class='col-md-6 pull-left bg-success'><strong>"
+												+  data['user'] + "</strong>: " + data['message'] + "<div class='pull-right text-mute'>"+timeFormat(new Date().getTime())+"</div>" +
+											"</div> " +
+										"</div>");
+
+                document.getElementById("chatlog").appendChild(document.createElement("br"));
+                document.getElementById("chatlog").append(document.createElement("hr"));
+                //document.getElementById("chatlog").append("<div class='half-col pull-left bg-success'>" +  data['user'] + ": " + data['message'] + "</div>");
+            }else{
+                $( "#chatlog" ).append("<div class='row'> " +
+											"<div style='padding: 2%;' class='col-md-6 pull-right bg-warning'><strong>"
+                    							+  data['user'] + "</strong>: " + data['message'] + "<div class='pull-right text-mute'>"+timeFormat(new Date().getTime())+"</div>" +
+                    						"</div> " +
+										"</div>");
+
+                document.getElementById("chatlog").appendChild(document.createElement("br"));
+                document.getElementById("chatlog").appendChild(document.createElement("hr"));
+                // document.getElementById("chatlog").appendChild(document.createTextNode("<div class='half-col pull-right bg-warning'>" + data['user'] + ": " + data['message']+ "</div>"));
+			}
+
+
+            var div = document.getElementById('chatlog');
+            //var elem = document.getElementById('data');
+            div.scrollTop = div.scrollHeight;
+            document.getElementById('bottomspan').scrollIntoView();
+        });
+
+		socketio.on("send_pic_to_client", function(data) {
+            if(data['user'] == user.name) {
+                $("#chatlog").append("<br><div class='half-col pull-left bg-success'>" + data['user'] + ": <img src='" + data['pic'] + "' alt='Could not send image.' height='100' width='100'></div><br>");
+                console.log(data['pic']);
+            }
+            else{
+                $("#chatlog").append("<br><div class='half-col pull-right bg-warning'>" + data['user'] + ": <img src='" + data['pic'] + "' alt='Could not send image.' height='100' width='100'></div><br>");
+                console.log(data['pic']);
+			}
+		});
+
+		socketio.on("dm_message_to_client", function(data) {
+
+            if(data['fromMem'].name == user.name){
+                var count = 0;
+                $( ".dm-nav li" ).each(function( index ) {
+                    if($( this ).text() == data['toMem']){
+                        count++;
+					}
+                    //console.log( index + ": " + $( this ).text() );
+                });
+                if(count == 0){
+                    $(".dm-nav").append('<li id="' + data['chatID'] + '">' + data['toMem'] + '</li>');
+				}
+            }
+            if(data['toMem'] == user.name){
+                var count = 0;
+                $( ".dm-nav li" ).each(function( index ) {
+                    if($( this ).text() == data['fromMem'].name){
+                        count++;
+                    }
+                    //console.log( index + ": " + $( this ).text() );
+                });
+                if(count == 0){
+                    $(".dm-nav").append('<li id="' + data['chatID'] + '">' + data['fromMem'].name + '<i class="pull-right glyphicon glyphicon-envelope"></i></li>');
+                }
+            }
+            //$('#chatroom-wrapper').hide();
+            //$('#dm-wrapper').show();
+
+            if(data['fromMem'].name == user.name) {
+                $("#dmchatName").html("<h4>" + data['toMem'] + "</h4>");
+                $( "#dmchatlog" ).append("<div class='row'> " +
+                    "<div style='padding: 2%;'  class='col-md-6 pull-left bg-success'><strong>"
+                    +  data['fromMem'].name + "</strong>: " + data['message'] + "<div class='pull-right'>"+timeFormat(new Date().getTime())+"</div>" +
+                    "</div> " +
+                    "</div>");
+                enterDm(data['chatID']);
+
+                document.getElementById("dmchatlog").appendChild(document.createElement("br"));
+                document.getElementById("dmchatlog").append(document.createElement("hr"));
+                //document.getElementById("chatlog").append("<div class='half-col pull-left bg-success'>" +  data['user'] + ": " + data['message'] + "</div>");
+            }else{
+                $("#dmchatName").html("<h4>" + data['fromMem'].name + "</h4>");
+                $( "#dmchatlog" ).append("<div class='row'> " +
+                    "<div style='padding: 2%;' class='col-md-6 pull-right bg-warning'><strong>"
+                    +   data['toMem'] + "</strong>: " + data['message'] + "<div class='pull-right'>"+timeFormat(new Date().getTime())+"</div>" +
+                    "</div> " +
+                    "</div>");
+                enterDm(data['chatID']);
+
+                document.getElementById("dmchatlog").appendChild(document.createElement("br"));
+                document.getElementById("dmchatlog").appendChild(document.createElement("hr"));
+                // document.getElementById("chatlog").appendChild(document.createTextNode("<div class='half-col pull-right bg-warning'>" + data['user'] + ": " + data['message']+ "</div>"));
+            }
+
+
+            var div = document.getElementById('dmchatlog');
+            //var elem = document.getElementById('data');
+            div.scrollTop = div.scrollHeight;
+            document.getElementById('dmbottomspan').scrollIntoView();
+
+			//document.getElementById("dmchatlog").appendChild(document.createElement("hr"));
+			//document.getElementById("dmchatlog").appendChild(document.createTextNode("Direct Message From " + data['fromMem'].name + ": " + data['message']));
+		});
+
+		socketio.on("kick_mem_to_client", function(data) {
+			document.getElementById("chatlog").appendChild(document.createTextNode(data));
+            document.getElementById("chatlog").appendChild(document.createElement("hr"));
+		});
+
+		socketio.on("kicked_mem_to_client", function(data) {
+			$('#header').hide();
+			$('#chatlog').empty();
+			$('#footer').hide();
+
+			document.getElementById("chatlog").appendChild(document.createTextNode(data));
+            document.getElementById("chatlog").appendChild(document.createElement("hr"));
+		});
+
+		socketio.on("ban_mem_to_client", function(data) {
+			document.getElementById("chatlog").appendChild(document.createTextNode(data));
+            document.getElementById("chatlog").appendChild(document.createElement("hr"));
+		});
+
+		socketio.on("banned_mem_to_client", function(data) {
+			var id = '#' + data['room'];
+			$(id).remove();
+			console.log(id);
+			$('#header').hide();
+			$('#chatlog').empty();
+			$('#footer').hide();
+
+			document.getElementById("chatlog").appendChild(document.createTextNode(data['message']));
+            document.getElementById("chatlog").appendChild(document.createElement("hr"));
+
+		});
+
+		function sendMessage(){
+			var msg = $("#message_input").val();
+			$("#message_input").val("");
+			socketio.emit("message_to_server", {user:user, message:msg});
+		}
+
+        function sendDmMessage(){
+            var msg = $("#dmmessage_input").val();
+            $("#dmmessage_input").val("");
+            chatID = activeDm;
+            toMem = $("#dm_to").val();
+            toMemID = $("#dm_to").attr('class');
+            console.log("toMem DM is: "+toMem);
+            console.log("toMem DM ID is: "+toMemID);
+            socketio.emit("dm_message_to_server", {fromMem:user, message:msg, toMem:toMem, toMemID:toMemID, chatID:chatID});
+        }
+
+		function enterRoom(id){
+			activeRoom = curRooms[id];
+
+			if (activeRoom.isPrivate) {
+				$('#privateChatModal').modal('show');
+
+				$("#privateChatSubmit").click(function(){
+					var isPass = $('#enterRoomPass').val();
+
+					if (activeRoom.password === isPass) {
+						if (user.inRoom != null && user.inRoom != id) {
+							$('#chatlog').empty();
+							socketio.emit("leave_room_to_server", {user: user, id: id});
+						}
+
+						user.inRoom = activeRoom.id;
+						socketio.emit("enter_room_to_server", user);
+						$('#chatroom-wrapper').show();
+						$("#chatName").html("<h4>" + activeRoom.name + "</h4>");
+						$('#privateChatModal').modal('hide');
+						$('#enterRoomPass').val("");
+					} else {
+						alert("Invalid Password!");
+					}
+				});
+			} else {
+				if (user.inRoom != null && user.inRoom != id) {
+					$('#chatlog').empty();
+					socketio.emit("leave_room_to_server", {user: user, id: id});
+				}
+
+
+				user.inRoom = activeRoom.id;
+				socketio.emit("enter_room_to_server", user);
+                $('#dm-wrapper').hide();
+				$('#chatroom-wrapper').show();
+				$("#chatName").html("<h4>" + activeRoom.name + "</h4>");
+
+			}
+
+		}
+
+        function enterDm(id){
+           activeDm = id;
+            socketio.emit("enter_dm_to_server", {from:user, activeDm: activeDm, to:$('#dm_to').val()});
+            //$("#chatName").html("<h4>" + activeRoom.name + "</h4>");
+        }
+
+		socketio.on("leave_room_to_client", function(data) {
+			document.getElementById("chatlog").appendChild(document.createTextNode(data));
+            document.getElementById("chatlog").appendChild(document.createElement("hr"));
+		});
+
+        socketio.on("history", function(data) {
+            if (data.length !== 0) {
+                $( "#chatlog" ).empty();
+                //$("#chatlog").append("<li><strong><span class='text-warning'>Last 10 messages:</li>");
+                $.each(data, function(data, msg) {
+                    //var str = msg;
+                    var str= msg.substr(0, msg.indexOf(':'));
+                    //str = str.split(":").pop();
+
+                    //console.log("str is "+str);
+                    //console.log("user is "+user.name);
+                    if(str == "<strong>"+user.name+"</strong>") {
+                        $( "#chatlog" ).append("<div class='row'> " +
+                            "<div style='padding: 2%;'  class='col-md-6 pull-left bg-success'>"+ msg +
+                            "</div> " +
+                            "</div>");
+
+                        document.getElementById("chatlog").appendChild(document.createElement("br"));
+                        document.getElementById("chatlog").append(document.createElement("hr"));
+                        //document.getElementById("chatlog").append("<div class='half-col pull-left bg-success'>" +  data['user'] + ": " + data['message'] + "</div>");
+                    }else{
+                        $( "#chatlog" ).append("<div class='row'> " +
+                            "<div style='padding: 2%;'  class='col-md-6 pull-right bg-warning'>"+ msg +
+                            "</div> " +
+                            "</div>");
+
+                        document.getElementById("chatlog").appendChild(document.createElement("br"));
+                        document.getElementById("chatlog").appendChild(document.createElement("hr"));
+                        // document.getElementById("chatlog").appendChild(document.createTextNode("<div class='half-col pull-right bg-warning'>" + data['user'] + ": " + data['message']+ "</div>"));
+                    }
+                    //$("#chatlog").append(msg);
+                });
+            } else {
+
+                //$("#chatlog").append("<li><strong><span class='text-warning'>No past messages in this room.</li>");
+            }
+        });
+
+        socketio.on("dmhistory", function(data) {
+            if (data.length !== 0) {
+                $( "#dmchatlog" ).empty();
+                //$("#chatlog").append("<li><strong><span class='text-warning'>Last 10 messages:</li>");
+                $.each(data, function(data, msg) {
+                    //var str = msg;
+                    var str= msg.substr(0, msg.indexOf(':'));
+                    //str = str.split(":").pop();
+
+                    //console.log("str is "+str);
+                    //console.log("user is "+user.name);
+                    if(str == "<strong>"+user.name+"</strong>") {
+                        $( "#dmchatlog" ).append("<div class='row'> " +
+                            "<div style='padding: 2%;'  class='col-md-6 pull-left bg-success'>"+ msg +
+                            "</div> " +
+                            "</div>");
+
+                        document.getElementById("dmchatlog").appendChild(document.createElement("br"));
+                        document.getElementById("dmchatlog").append(document.createElement("hr"));
+                        //document.getElementById("chatlog").append("<div class='half-col pull-left bg-success'>" +  data['user'] + ": " + data['message'] + "</div>");
+                    }else{
+                        $( "#dmchatlog" ).append("<div class='row'> " +
+                            "<div style='padding: 2%;'  class='col-md-6 pull-right bg-warning'>"+ msg +
+                            "</div> " +
+                            "</div>");
+
+                        document.getElementById("dmchatlog").appendChild(document.createElement("br"));
+                        document.getElementById("dmchatlog").appendChild(document.createElement("hr"));
+                        // document.getElementById("chatlog").appendChild(document.createTextNode("<div class='half-col pull-right bg-warning'>" + data['user'] + ": " + data['message']+ "</div>"));
+                    }
+                    //$("#chatlog").append(msg);
+                });
+            } else {
+
+                //$("#chatlog").append("<li><strong><span class='text-warning'>No past messages in this room.</li>");
+            }
+        });
+
+
+
+		function directMsg() {
+			var id = $("#dmButton").attr("class")
+			toMem = users[id];
+			fromMem = user;
+
+            var dmID = Math.random().toString(36).substr(2, 15);
+            console.log("chat string "+dmID);
+            socketio.emit("create_dm_to_server", {chatID: dmID, toMem:toMem, fromMem:fromMem});
+
+			//$('#dmHeader').append('Direct Message to ' + toMem['name']);
+
+			$('#memModal').modal('hide');
+			//$('#dmModal').modal('show');
+
+            //$('#chatroom-wrapper').hide();
+            //$('#dm-wrapper').show();
+
+
+//            if(data['fromMem'].name == user.name) {
+//                $("#dmchatName").html("<h4>" + data['toMem'].name + "</h4>");
+//
+//                $( "#dmchatlog" ).append("<div class='row'> " +
+//                    "<div style='padding: 2%;'  class='col-md-6 pull-left bg-success'><strong>"
+//                    +  data['fromMem'].name + "</strong>: " + data['message'] + "<div class='pull-right'>"+timeFormat(new Date().getTime())+"</div>" +
+//                    "</div> " +
+//                    "</div>");
+//
+//                document.getElementById("dmchatlog").appendChild(document.createElement("br"));
+//                document.getElementById("dmchatlog").append(document.createElement("hr"));
+//                //document.getElementById("chatlog").append("<div class='half-col pull-left bg-success'>" +  data['user'] + ": " + data['message'] + "</div>");
+//            }else{
+//                $("#dmchatName").html("<h4>" + data['fromMem'].name + "</h4>");
+//                $( "#dmchatlog" ).append("<div class='row'> " +
+//                    "<div style='padding: 2%;' class='col-md-6 pull-right bg-warning'><strong>"
+//                    +   data['fromMem'].name + "</strong>: " + data['message'] + "<div class='pull-right'>"+timeFormat(new Date().getTime())+"</div>" +
+//                    "</div> " +
+//                    "</div>");
+//
+//                document.getElementById("dmchatlog").appendChild(document.createElement("br"));
+//                document.getElementById("dmchatlog").appendChild(document.createElement("hr"));
+                // document.getElementById("chatlog").appendChild(document.createTextNode("<div class='half-col pull-right bg-warning'>" + data['user'] + ": " + data['message']+ "</div>"));
+//            }
+
+
+//            var div = document.getElementById('dmchatlog');
+//            //var elem = document.getElementById('data');
+//            div.scrollTop = div.scrollHeight;
+//            document.getElementById('dmbottomspan').scrollIntoView();
+		}
+
+		function kickMem() {
+			$('#memModal').modal('hide');
+			var id = $("#kickButton").attr("class")
+			toMem = users[id];
+			socketio.emit("kick_mem_to_server", {fromMem:user, toMem:toMem});
+		};
+
+		function banMem() {
+			$('#memModal').modal('hide');
+			var id = $("#banButton").attr("class")
+			toMem = users[id];
+			socketio.emit("ban_mem_to_server", {fromMem:user, toMem:toMem});
+		};
+
+		$(document).ready(function() {
+			$("#loginSubmit").click(function(){
+			   tempUser = new Person ($('#user').val(), null, null, null);
+			   socketio.emit("new_user_to_server", tempUser);
+			});
+
+			// show password box for private chats
+			$('input[type="radio"]').click(function() {
+				if($(this).attr('id') == 'private') {
+					$('#reveal-if-active').show();
+					isPrivate = true;
+				} else {
+					$('#reveal-if-active').hide();
+					isPrivate = false;
+					password = "";
+				}
+			});
+
+			// create new room
+			$("#newRoomSubmit").click(function(){
+				var roomName = $('#roomName').val();
+
+				//reset form
+				$('#roomName').val("");
+
+				if (isPrivate) {
+					password = $('#roomPass').val();
+				}
+				activeRoom = new Room(roomName, user.id, null, isPrivate, password);
+
+				rooms[rooms.length] = activeRoom;
+
+				socketio.emit("create_room_to_server", activeRoom);
+			});
+
+
+			function getEventTarget(e) {
+				e = e || window.event;
+				return e.target || e.srcElement;
+			}
+
+			var ul = document.getElementById('activeRooms');
+			ul.onclick = function(event) {
+				var target = getEventTarget(event);
+				var id = $(target).attr('id');
+				if(id != 'createNewRoom') {
+					enterRoom(id);
+				}
+			};
+
+            var ulDM = document.getElementById('activeDms');
+            ulDM.onclick = function(event) {
+                var target = getEventTarget(event);
+                var id = $(target).attr('id');
+                console.log("id is "+id);
+                if(id != 'DirectMessages') {
+                    enterDm(id);
+                }
+            };
+
+			var mems = document.getElementById('memsList');
+			mems.onclick = function(event) {
+				var target = getEventTarget(event);
+				var id = $(target).attr('id');
+				if (id != user.id) {
+					memActions(id);
+				}
+
+			};
+
+
+			function memActions(id) {
+				var mem = (users[id]);
+
+				$('#memHeader').append("<h4>" + mem['name'] + "</h4>");
+				$('#actionList').append('<button id="dmButton" class="' + id + '"onclick="directMsg()">Direct Message</button>    ');
+
+				if (user.id == activeRoom.creator) {
+					$('#actionList').append('<button id="kickButton" class="' + id + '" onclick="kickMem()">Kick Out</button>    ');
+					$('#actionList').append('<button id="banButton" class="' + id + '" onclick="banMem()">Ban</button>');
+				}
+				$('#chatMemsModal').modal('hide');
+				$('#memModal').modal('show');
+			};
+
+			$("#chatMemsButton").click(function(){
+			   $("#memsList").empty();
+			   socketio.emit("list_mems_to_server", activeRoom.id);
+			});
+
+			$("#dmSendButton").click(function(){
+				var msg = $("#dm_message_input").val();
+				$("#dm_message_input").val("");
+				socketio.emit("dm_message_to_server", {fromMem:user, toMem:toMem, message:msg});
+			});
+
+
+			$("#uploadSubmit").click(function(){
+				var pic = $("#pic").val();
+				$("#pic").val("");
+				socketio.emit("send_pic_to_server", {user:user, pic:pic});
+			});
+
+		});
+
+		// login modal function
+		$(window).load(function(){
+			$('#loginModal').modal({
+				backdrop: 'static',
+				keyboard: false
+			});
+			$('#loginModal').modal('show');
+		});
+
+	</script>
+
+	<!-- Menu Toggle Script -->
+    <script>
+		$(document).ready(function() {
+			$("#menu-toggle").click(function(e) {
+				e.preventDefault();
+				$("#wrapper").toggleClass("toggled");
+			});
+		});
+    </script>
+
+</head>
+
+<body>
+    <div id="wrapper">
+
+        <!-- Sidebar -->
+        <div id="sidebar-wrapper">
+            <ul id="activeRooms" class="sidebar-nav">
+                <li id="createNewRoom" data-target="#newChatModal" data-toggle="modal">
+                    Create New Room
+                </li>
+            </ul>
+			<ul id="activeDms" class="dm-nav">
+				<li id="DirectMessages">
+					Direct Messages
+				</li>
+			</ul>
+        </div>
+        <!-- /#sidebar-wrapper -->
+
+        <!-- Page Content -->
+        <div id="chatroom-wrapper" class="container-fluid" data-room="" style='display:none'>
+
+				<div id="header" class="row">
+					<div data-room="" id="chatName" class="col-sm-6"></div>
+					<div id="numMembers" class="col-sm-6 text-right">
+						<button id="chatMemsButton" class="btn btn-info btn-sm" data-toggle="modal" data-target="#chatMemsModal">Members</button>
+						<button id="inviteMemsButton" class="btn btn-info btn-sm" data-toggle="modal" data-target="#inviteMemsModal">Invite Members</button>
+						<a href="#menu-toggle" class="btn btn-info btn-sm" id="menu-toggle">Toggle Menu</a>
+					</div>
+				</div>
+
+				<!-- content -->
+				<div id="chat" class="row">
+					<div style="overflow:auto" data-room="" id="chatlog" class="col-sm-12">
+
+					</div>
+					<span id='bottomspan'></span>
+				</div>
+
+				<div id="footer" class="row" >
+					<br>
+					<div id="messageBox" class="col-sm-10">
+						<input id="message_input" type="text"/>
+					</div>
+					<div id="messageSend" class="col-sm-2">
+						<button data-room="" id="sendButton" onclick="sendMessage()">send</button>
+						<button data-room="" id="uploadButton" data-toggle="modal" data-target="#uploadModal">upload</button>
+					</div>
+				</div>
+
+        </div>
+        <!-- /#chatroom-wrapper -->
+
+		<div id="dm-wrapper" class="container-fluid" data-dm="" style='display:none'>
+
+			<div id="header" class="row">
+				<div  id="dmchatName" class="col-sm-6"></div>
+				<input type="text" id="dm_to">
+
+
+			</div>
+
+			<!-- content -->
+			<div id="dmchat" class="row">
+				<div data-dm="" id="dmchatlog" class="col-sm-12">
+
+				</div>
+				<span id='dmbottomspan'></span>
+			</div>
+
+			<div id="dmfooter" class="row">
+				<br>
+				<div id="dmmessageBox" class="col-sm-10">
+					<input id="dmmessage_input" type="text"/>
+				</div>
+				<div id="messageSend" class="col-sm-2">
+					<button id="dm_sendButton" onclick="sendDmMessage()">send</button>
+					<button id="dm_uploadButton" data-toggle="modal" data-target="#uploadModal">upload</button>
+				</div>
+			</div>
+
+		</div>
+		<!-- /#chatroom-wrapper -->
+
+    </div>
+    <!-- /#wrapper -->
+
+	<!-- loginModal -->
+	<div id="loginModal" class="modal fade" role="dialog">
+		<div class="modal-dialog">
+			<!-- modal content-->
+			<div class="modal-content">
+				<div class="modal-header"></div>
+				<div class="modal-body">
+					<form id = "loginForm" class="form-horizontal" role="form">
+						<div class="form-group">
+							<label class="control-label col-sm-2" for="user">Username:</label>
+							<div class="col-sm-10">
+								<input id="user" type="text" class="form-control" placeholder="Enter username" required>
+							</div>
+						</div>
+					</form>
+				</div>
+
+				<div class="modal-footer">
+					<button id="loginSubmit" type="submit" class="btn btn-default" data-dismiss="modal">Start Chatting</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- /loginModal -->
+
+	<!-- newChatModal -->
+	<div id="newChatModal" class="modal fade" role="dialog">
+		<div class="modal-dialog">
+			<!-- modal content-->
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+				</div>
+
+				<div class="modal-body">
+					<form id = "newRoomForm" class="form-horizontal" role="form">
+						<div class="form-group">
+							<label class="control-label col-sm-3" for="roomName">Room Name:</label>
+							<div class="col-sm-9">
+								<input id="roomName" type="text" class="form-control" placeholder="Enter room name" required>
+							</div>
+						</div>
+
+						<div class="form-group">
+							<div class="col-sm-3">Type:</div>
+							<div id="roomType" class="col-sm-9">
+								<input id="public" type="radio" name="roomTypeOption">
+								<label>Public  </label>
+								<input id="private" type="radio" name="roomTypeOption">
+								<label>Private</label>
+							</div>
+						</div>
+
+						<div id="reveal-if-active" style='display:none'>
+							<div class="form-group">
+								<label class="control-label col-sm-3" for="roomPass">Password:</label>
+								<div class="col-sm-9">
+									<input id="roomPass" type="password" class="form-control" placeholder="Enter password" required>
+								</div>
+							</div>
+						</div>
+					</form>
+				</div>
+
+				<div class="modal-footer">
+					<button id="newRoomSubmit" type="submit" class="btn btn-default" data-dismiss="modal">Create Room</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- /newChatModal -->
+
+	<!-- privateChatModal -->
+	<div id="privateChatModal" class="modal fade" role="dialog">
+		<div class="modal-dialog">
+			<!-- modal content-->
+			<div class="modal-content">
+				<div class="modal-header"></div>
+				<div class="modal-body">
+					<form id = "privateChatForm" class="form-horizontal" role="form">
+						<div class="form-group">
+							<label class="control-label col-sm-3" for="enterRoomPass">Password:</label>
+							<div class="col-sm-9">
+								<input id="enterRoomPass" type="password" class="form-control" placeholder="Enter password" required>
+							</div>
+						</div>
+					</form>
+				</div>
+
+				<div class="modal-footer">
+					<button id="privateChatSubmit" type="submit" class="btn btn-default" data-dismiss="modal">Enter Room</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- /loginModal -->
+
+	<!-- chatMemsModal -->
+	<div id="chatMemsModal" class="modal fade" role="dialog">
+		<div class="modal-dialog">
+			<!-- modal content-->
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h4>Room Members</h4>
+				</div>
+
+				<div class="modal-body" id="memsList"></div>
+			</div>
+		</div>
+	</div>
+	<!-- /chatMemsModal -->
+
+	<!-- inviteMemsModal -->
+	<div id="inviteMemsModal" class="modal fade" role="dialog">
+		<div class="modal-dialog">
+			<!-- modal content-->
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h4>Room Members</h4>
+				</div>
+
+				<div class="modal-body" id="">
+					<form action="">
+						<div class="form-group">
+							<label for="contacts">select contacts</label>
+							<div class="col-md-12">
+								<select name="contacts" id="contacts" class="select2 form-control" multiple="multiple">
+									<option value="1">1</option>
+									<option value="2">2</option>
+									<option value="3">3</option>
+									<option value="4">4</option>
+									<option value="5">5</option>
+									<option value="6">6</option>
+									<option value="7">7</option>
+									<option value="8">8</option>
+								</select>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="checkbox-inline"><input type="checkbox" id="selectAll" name="selectAll">Select All</label>
+						</div>
+						<div class="form-group">
+							<input type="submit" class="btn btn-info btn-sm" value="Invite to group">
+						</div>
+					</form>
+
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- /inviteMemsModal -->
+
+	<!-- memModal -->
+	<div id="memModal" class="modal fade" role="dialog">
+		<div class="modal-dialog">
+			<!-- modal content-->
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<div id="memHeader"></div>
+				</div>
+
+				<div class="modal-body" id="actionList"></div>
+
+			</div>
+		</div>
+	</div>
+	<!-- /memModal -->
+
+	<!-- dmModal -->
+	<!---->
+	<!-- /dmModal -->
+
+	<!-- uploadModal -->
+	<div id="uploadModal" class="modal fade" role="dialog">
+		<div class="modal-dialog">
+			<!-- modal content-->
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h4>Enter the url of your image...</h4>
+				</div>
+
+				<div class="modal-body">
+					<div class="form-group">
+						<input type="url" id="pic" style="width: 100%;">
+					</div>
+				</div>
+
+				<div class="modal-footer">
+					<button id="uploadSubmit" type="submit" class="btn btn-default" data-dismiss="modal">Send</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- /uploadModal -->
+
+
+
+</body>
+</html>
